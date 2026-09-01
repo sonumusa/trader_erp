@@ -1,0 +1,21 @@
+# TradeERP - public/.htaccess
+# Front-controller routing. Apache mod_rewrite (standard on Hostinger).
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block dotfiles
+    RewriteRule (^\.|/\.) - [F,L]
+
+    # Route non-existent files/directories to the front controller
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Security headers (only applied when the main app sends them too)
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

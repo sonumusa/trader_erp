@@ -1,0 +1,20 @@
+# TradeERP - Root .htaccess
+# Used when the document root points at the project root (instead of /public).
+# Blocks direct access to private directories and routes everything to /public.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct access to private application directories
+    RewriteRule ^(app|config|database|routes|storage|install|bin|tests|docs)(/|$) - [F,L]
+
+    # Block dotfiles
+    RewriteRule (^\.|/\.) - [F,L]
+
+    # Route everything else to the public directory
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

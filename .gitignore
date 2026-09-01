@@ -1,0 +1,26 @@
+# TradeERP — ignore generated / sensitive / dev files
+
+# Config with real credentials
+/config/config.php
+
+# Installer lock
+/storage/installed.lock
+
+# Runtime storage
+/storage/logs/*.log
+/storage/cache/*
+/storage/uploads/*
+/storage/backups/*
+/storage/exports/*
+!/storage/logs/.gitkeep
+!/storage/cache/.gitkeep
+!/storage/uploads/.gitkeep
+!/storage/backups/.gitkeep
+!/storage/exports/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
