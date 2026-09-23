@@ -23,6 +23,31 @@ final class PurchaseDocumentService
         return self::createDocument('order', $companyId, $data);
     }
 
+    public static function findOrder(int $id): ?array
+    {
+        $order = Database::row('SELECT * FROM purchase_orders WHERE id = ?', [$id]);
+        if ($order) $order['items'] = Database::query('SELECT * FROM purchase_order_items WHERE order_id = ? ORDER BY id', [$id]);
+        return $order;
+    }
+
+    public static function updateOrder(int $id, array $data): void
+    {
+        $order = self::findOrder($id);
+        if (!$order || $order['status'] !== 'posted') throw new \RuntimeException('Order not found or cancelled.');
+        $supplier = Database::row('SELECT id FROM suppliers WHERE id = ? AND company_id = ? AND deleted_at IS NULL', [(int) $data['supplier_id'], (int) $order['company_id']]);
+        if (!$supplier || empty($data['lines'])) throw new \RuntimeException('Select a valid supplier and add at least one item.');
+        $lines = array_map(fn($line) => PurchaseService::calculateLine($line), $data['lines']);
+        foreach ($lines as $line) {
+            if (PurchaseService::invoicedBaseQty('purchase', $id, (int) $line['item_id']) > (float) $line['base_qty'] + 0.0001) throw new \RuntimeException('An order line cannot be reduced below its already invoiced quantity.');
+        }
+        Database::transaction(function () use ($id, $data, $lines): void {
+            Database::execute('UPDATE purchase_orders SET supplier_id = ?, order_date = ?, reference_quotation_id = ?, narration = ?, updated_at = ? WHERE id = ?', [(int) $data['supplier_id'], $data['date'], $data['reference_quotation_id'] ?? null, $data['narration'] ?? '', date('Y-m-d H:i:s'), $id]);
+            Database::execute('DELETE FROM purchase_order_items WHERE order_id = ?', [$id]);
+            $stmt = Database::pdo()->prepare('INSERT INTO purchase_order_items (order_id, item_id, uom_id, quantity, base_qty, rate, discount, tax_id, tax_rate, tax_amount, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            foreach ($lines as $line) $stmt->execute([$id, $line['item_id'], $line['uom_id'] ?: null, $line['quantity'], $line['base_qty'], $line['rate'], $line['discount'], $line['tax_id'], $line['tax_rate'], $line['tax_amount'], $line['amount']]);
+        });
+    }
+
     private static function createDocument(string $kind, int $companyId, array $data): int
     {
         $supplier = Database::row(
@@ -104,6 +129,8 @@ final class PurchaseDocumentService
         $offset = max(0, ($page - 1) * $perPage);
         $rows = Database::query(
             "SELECT d.*, s.name AS supplier_name
+                    , (SELECT COALESCE(SUM(poi.base_qty), 0) FROM purchase_order_items poi WHERE poi.order_id = d.id) AS ordered_qty
+                    , (SELECT COALESCE(SUM(pii.base_qty), 0) FROM purchase_invoice_items pii JOIN purchase_invoices pi ON pi.id = pii.invoice_id WHERE pi.reference_order_id = d.id AND pi.status = 'posted') AS invoiced_qty
              FROM {$table} d
              JOIN suppliers s ON s.id = d.supplier_id
              WHERE d.company_id = ?

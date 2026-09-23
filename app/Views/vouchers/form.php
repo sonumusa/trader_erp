@@ -180,6 +180,9 @@ $voucherLines = $voucher['lines'] ?? [];
         </div>
         <div class="erp-card-footer">
             <span class="form-hint">Debit must equal credit for the voucher to post.</span>
+            <div id="journalBalance" class="small mt-2" aria-live="polite">
+                Total Debit: <b id="journalDebit">0.00</b> · Total Credit: <b id="journalCredit">0.00</b> · Difference: <b id="journalDifference">0.00</b>
+            </div>
         </div>
     </div>
 
@@ -200,6 +203,22 @@ $voucherLines = $voucher['lines'] ?? [];
     const supWrap = document.getElementById('party-supplier-wrap');
     const bankMode = document.getElementById('bank-mode-wrap');
     const counterLabel = document.getElementById('counter-label');
+    const form = document.getElementById('voucherForm');
+
+    function updateJournalBalance() {
+        let debit = 0;
+        let credit = 0;
+        document.querySelectorAll('#journalLines .jl-row').forEach((row) => {
+            debit += Number(row.querySelector('[name="lines[debit][]"]')?.value || 0);
+            credit += Number(row.querySelector('[name="lines[credit][]"]')?.value || 0);
+        });
+        const difference = Math.abs(debit - credit);
+        document.getElementById('journalDebit').textContent = debit.toFixed(2);
+        document.getElementById('journalCredit').textContent = credit.toFixed(2);
+        document.getElementById('journalDifference').textContent = difference.toFixed(2);
+        document.getElementById('journalBalance').className = 'small mt-2 ' + (difference < 0.005 ? 'text-success' : 'text-danger');
+        return difference < 0.005;
+    }
 
     function sync() {
         const t = typeSel.value;
@@ -235,6 +254,7 @@ $voucherLines = $voucher['lines'] ?? [];
         clone.querySelectorAll('input').forEach((i) => i.value = '');
         clone.querySelector('select').selectedIndex = 0;
         rows.appendChild(clone);
+        clone.querySelectorAll('input').forEach((input) => input.addEventListener('input', updateJournalBalance));
         clone.querySelector('.jl-remove').addEventListener('click', () => {
             if (rows.querySelectorAll('.jl-row').length > 1) clone.remove();
         });
@@ -242,9 +262,19 @@ $voucherLines = $voucher['lines'] ?? [];
     document.querySelectorAll('.jl-remove').forEach((b) => b.addEventListener('click', () => {
         const rows = document.getElementById('journalLines');
         if (rows.querySelectorAll('.jl-row').length > 1) b.closest('.jl-row').remove();
+        updateJournalBalance();
     }));
+
+    document.querySelectorAll('#journalLines input').forEach((input) => input.addEventListener('input', updateJournalBalance));
+    form.addEventListener('submit', (event) => {
+        if (typeSel.value === 'journal' && !updateJournalBalance()) {
+            event.preventDefault();
+            window.alert('Journal Voucher must balance: total debit must equal total credit.');
+        }
+    });
 
     sync();
     syncParty();
+    updateJournalBalance();
 })();
 </script>

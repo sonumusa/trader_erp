@@ -22,6 +22,33 @@ final class SalesDocumentService
         return self::createDocument('order', $companyId, $data);
     }
 
+    public static function findOrder(int $id): ?array
+    {
+        $order = Database::row('SELECT * FROM sales_orders WHERE id = ?', [$id]);
+        if ($order) {
+            $order['items'] = Database::query('SELECT * FROM sales_order_items WHERE order_id = ? ORDER BY id', [$id]);
+        }
+        return $order;
+    }
+
+    public static function updateOrder(int $id, array $data): void
+    {
+        $order = self::findOrder($id);
+        if (!$order || $order['status'] !== 'posted') throw new \RuntimeException('Order not found or cancelled.');
+        $customer = Database::row('SELECT id FROM customers WHERE id = ? AND company_id = ? AND deleted_at IS NULL', [(int) $data['customer_id'], (int) $order['company_id']]);
+        if (!$customer || empty($data['lines'])) throw new \RuntimeException('Select a valid customer and add at least one item.');
+        $lines = array_map(fn($line) => PurchaseService::calculateLine($line), $data['lines']);
+        foreach ($lines as $line) {
+            if (PurchaseService::invoicedBaseQty('sales', $id, (int) $line['item_id']) > (float) $line['base_qty'] + 0.0001) throw new \RuntimeException('An order line cannot be reduced below its already invoiced quantity.');
+        }
+        Database::transaction(function () use ($id, $data, $lines): void {
+            Database::execute('UPDATE sales_orders SET customer_id = ?, order_date = ?, reference_quotation_id = ?, narration = ?, updated_at = ? WHERE id = ?', [(int) $data['customer_id'], $data['date'], $data['reference_quotation_id'] ?? null, $data['narration'] ?? '', date('Y-m-d H:i:s'), $id]);
+            Database::execute('DELETE FROM sales_order_items WHERE order_id = ?', [$id]);
+            $stmt = Database::pdo()->prepare('INSERT INTO sales_order_items (order_id, item_id, uom_id, quantity, base_qty, rate, discount, tax_id, tax_rate, tax_amount, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            foreach ($lines as $line) $stmt->execute([$id, $line['item_id'], $line['uom_id'] ?: null, $line['quantity'], $line['base_qty'], $line['rate'], $line['discount'], $line['tax_id'], $line['tax_rate'], $line['tax_amount'], $line['amount']]);
+        });
+    }
+
     private static function createDocument(string $kind, int $companyId, array $data): int
     {
         $customerId = (int) ($data['customer_id'] ?? 0);
@@ -103,6 +130,8 @@ final class SalesDocumentService
         $offset = max(0, ($page - 1) * $perPage);
         $rows = Database::query(
             "SELECT d.*, c.name AS customer_name
+                    , (SELECT COALESCE(SUM(soi.base_qty), 0) FROM sales_order_items soi WHERE soi.order_id = d.id) AS ordered_qty
+                    , (SELECT COALESCE(SUM(sii.base_qty), 0) FROM sales_invoice_items sii JOIN sales_invoices si ON si.id = sii.invoice_id WHERE si.reference_order_id = d.id AND si.status = 'posted') AS invoiced_qty
              FROM {$table} d
              JOIN customers c ON c.id = d.customer_id
              WHERE d.company_id = ?

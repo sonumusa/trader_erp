@@ -53,15 +53,15 @@ return [
     'sales' => [
         'customer'        => ['view', 'create', 'edit', 'delete'],
         'sales_quotation' => ['view', 'create', 'cancel', 'print'],
-        'sales_order'     => ['view', 'create', 'cancel', 'print'],
-        'sales_invoice'   => ['view', 'create', 'cancel', 'print', 'export'],
+        'sales_order'     => ['view', 'create', 'edit', 'cancel', 'print'],
+        'sales_invoice'   => ['view', 'create', 'edit', 'cancel', 'print', 'export'],
         'sales_return'    => ['view', 'create', 'cancel', 'print'],
     ],
     'purchase' => [
         'supplier'           => ['view', 'create', 'edit', 'delete'],
         'purchase_quotation' => ['view', 'create', 'cancel', 'print'],
-        'purchase_order'     => ['view', 'create', 'cancel', 'print'],
-        'purchase_invoice'   => ['view', 'create', 'cancel', 'print', 'export'],
+        'purchase_order'     => ['view', 'create', 'edit', 'cancel', 'print'],
+        'purchase_invoice'   => ['view', 'create', 'edit', 'cancel', 'print', 'export'],
         'purchase_return'    => ['view', 'create', 'cancel', 'print'],
     ],
 ];

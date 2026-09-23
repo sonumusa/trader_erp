@@ -234,6 +234,8 @@ $router->group('/purchase/invoices', ['auth'], function ($r) {
     $r->get('', [PurchaseController::class, 'index']);
     $r->get('/new', [PurchaseController::class, 'createForm']);
     $r->post('', [PurchaseController::class, 'store'], ['csrf']);
+    $r->get('/{id}/edit', [PurchaseController::class, 'editForm']);
+    $r->post('/{id}', [PurchaseController::class, 'update'], ['csrf']);
     $r->get('/{id}', [PurchaseController::class, 'show']);
     $r->get('/{id}/print', [PurchaseController::class, 'print']);
     $r->get('/{id}/journal', [PurchaseController::class, 'journal']);
@@ -244,6 +246,8 @@ $router->group('/purchase/orders', ['auth'], function ($r) {
     $r->get('', [PurchaseOrderController::class, 'index']);
     $r->get('/new', [PurchaseOrderController::class, 'createForm']);
     $r->post('', [PurchaseOrderController::class, 'store'], ['csrf']);
+    $r->get('/{id}/edit', [PurchaseOrderController::class, 'editForm']);
+    $r->post('/{id}', [PurchaseOrderController::class, 'update'], ['csrf']);
     $r->post('/{id}/cancel', [PurchaseOrderController::class, 'cancel'], ['csrf']);
 });
 
@@ -268,6 +272,8 @@ $router->group('/sales/invoices', ['auth'], function ($r) {
     $r->get('', [SalesController::class, 'index']);
     $r->get('/new', [SalesController::class, 'createForm']);
     $r->post('', [SalesController::class, 'store'], ['csrf']);
+    $r->get('/{id}/edit', [SalesController::class, 'editForm']);
+    $r->post('/{id}', [SalesController::class, 'update'], ['csrf']);
     $r->get('/{id}', [SalesController::class, 'show']);
     $r->get('/{id}/print', [SalesController::class, 'print']);
     $r->get('/{id}/journal', [SalesController::class, 'journal']);
@@ -281,6 +287,8 @@ $router->group('/sales/orders', ['auth'], function ($r) {
     $r->get('', [SalesOrderController::class, 'index']);
     $r->get('/new', [SalesOrderController::class, 'createForm']);
     $r->post('', [SalesOrderController::class, 'store'], ['csrf']);
+    $r->get('/{id}/edit', [SalesOrderController::class, 'editForm']);
+    $r->post('/{id}', [SalesOrderController::class, 'update'], ['csrf']);
     $r->post('/{id}/cancel', [SalesOrderController::class, 'cancel'], ['csrf']);
 });
 

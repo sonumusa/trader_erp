@@ -33,6 +33,7 @@ final class SalesOrderController extends Controller
             'title' => 'Sales Orders',
             'data'  => SalesDocumentService::paginate('order', $companyId, $this->request->page()),
             'canCreate' => PermissionService::can('sales', 'sales_order', 'create'),
+            'canEdit' => PermissionService::can('sales', 'sales_order', 'edit'),
         ])->render();
     }
 
@@ -73,6 +74,17 @@ final class SalesOrderController extends Controller
             'prefillLines' => $prefillLines,
             'reference'   => $reference,
         ])->render();
+    }
+
+    public function editForm(int|string $id): string
+    {
+        $this->requireFeature('sales'); $this->requirePermission('sales', 'sales_order', 'edit');
+        $order = SalesDocumentService::findOrder((int) $id);
+        if (!$order || (int) $order['company_id'] !== (int) CompanyContextService::currentCompanyId()) { flash('error', 'Order not found.'); return (string) $this->response->redirect($this->request->url('/sales/orders'))->body(); }
+        $lines = [];
+        foreach ($order['items'] as $line) { $item = Database::row('SELECT item_code, name FROM items WHERE id = ?', [(int) $line['item_id']]); $line['prefill_item_code'] = $item['item_code'] ?? ''; $line['prefill_item_name'] = $item['name'] ?? ''; $line['prefill_uom_code'] = Database::value('SELECT code FROM uoms WHERE id = ?', [(int) $line['uom_id']]); $lines[] = $line; }
+        $companyId = (int) $order['company_id'];
+        return $this->view('sales/orders/form', ['title' => 'Edit Sales Order', 'order' => $order, 'customers' => Database::query('SELECT id, name, code FROM customers WHERE company_id = ? AND deleted_at IS NULL AND status = \'active\' ORDER BY name', [$companyId]), 'quotations' => Database::query('SELECT id, quotation_no, quotation_date FROM sales_quotations WHERE company_id = ? AND status = \'posted\' ORDER BY id DESC LIMIT 50', [$companyId]), 'prefillLines' => $lines, 'reference' => null, 'isEdit' => true])->render();
     }
 
     public function store(): mixed
@@ -123,5 +135,13 @@ final class SalesOrderController extends Controller
         AuditService::log('cancel', 'sales', 'sales_order', (int) $id, 'Cancelled sales order');
         flash('success', 'Sales order cancelled.');
         return $this->response->redirect($this->request->url('/sales/orders'));
+    }
+
+    public function update(int|string $id): mixed
+    {
+        $this->requireFeature('sales'); $this->requirePermission('sales', 'sales_order', 'edit');
+        try { SalesDocumentService::updateOrder((int) $id, ['customer_id' => (int) $this->request->input('customer_id'), 'date' => (string) $this->request->input('order_date'), 'reference_quotation_id' => (int) $this->request->input('reference_quotation_id') ?: null, 'narration' => (string) $this->request->input('narration', ''), 'lines' => PurchaseService::linesFromInput($this->request->input('items', []))]); }
+        catch (\RuntimeException $e) { flash('error', $e->getMessage()); return $this->response->back(); }
+        AuditService::log('update', 'sales', 'sales_order', (int) $id, 'Updated sales order'); flash('success', 'Sales order updated.'); return $this->response->redirect($this->request->url('/sales/orders'));
     }
 }

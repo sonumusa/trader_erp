@@ -69,6 +69,7 @@ $data = $this->data['data'];
                         </td>
                         <td class="actions-cell">
                             <a href="<?= $this->url('/sales/invoices/' . (int) $inv['id']) ?>" class="btn btn-sm btn-outline-primary btn-icon" title="View"><i class="bi bi-eye"></i></a>
+                            <?php if (($this->data['canEdit'] ?? false) && $inv['status'] === 'posted'): ?><a href="<?= $this->url('/sales/invoices/' . (int) $inv['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary btn-icon" title="Edit"><i class="bi bi-pencil"></i></a><?php endif; ?>
                             <a href="<?= $this->url('/sales/invoices/' . (int) $inv['id'] . '/print') ?>" class="btn btn-sm btn-outline-secondary btn-icon" title="Print"><i class="bi bi-printer"></i></a>
                         </td>
                     </tr>

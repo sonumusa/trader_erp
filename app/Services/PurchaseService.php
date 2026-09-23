@@ -135,4 +135,46 @@ final class PurchaseService
             [$documentId]
         );
     }
+
+    /** Return already invoiced base quantity for one order line. */
+    public static function invoicedBaseQty(string $orderType, int $orderId, int $itemId): float
+    {
+        $invoiceTable = $orderType === 'sales' ? 'sales_invoices' : 'purchase_invoices';
+        $lineTable = $orderType === 'sales' ? 'sales_invoice_items' : 'purchase_invoice_items';
+        return (float) Database::value(
+            "SELECT COALESCE(SUM(li.base_qty), 0) FROM {$lineTable} li
+             JOIN {$invoiceTable} inv ON inv.id = li.invoice_id
+             WHERE inv.reference_order_id = ? AND inv.status = 'posted' AND li.item_id = ?",
+            [$orderId, $itemId]
+        );
+    }
+
+    /** Ensure an invoice does not exceed the remaining order quantity. */
+    public static function validateOrderRemaining(string $orderType, int $orderId, array $lines, ?int $companyId = null): void
+    {
+        if ($orderId <= 0) {
+            return;
+        }
+        $orderTable = $orderType === 'sales' ? 'sales_orders' : 'purchase_orders';
+        $lineTable = $orderType === 'sales' ? 'sales_order_items' : 'purchase_order_items';
+        $order = Database::row("SELECT id, company_id, status FROM {$orderTable} WHERE id = ?", [$orderId]);
+        if (!$order || $order['status'] !== 'posted' || ($companyId !== null && (int) $order['company_id'] !== $companyId)) {
+            throw new \RuntimeException('The selected order is not available for invoicing.');
+        }
+        $ordered = Database::query("SELECT item_id, base_qty FROM {$lineTable} WHERE " . ($orderType === 'sales' ? 'order_id' : 'order_id') . ' = ?', [$orderId]);
+        $limits = [];
+        foreach ($ordered as $row) {
+            $limits[(int) $row['item_id']] = ($limits[(int) $row['item_id']] ?? 0) + (float) $row['base_qty'];
+        }
+        $requested = [];
+        foreach ($lines as $line) {
+            $requested[(int) $line['item_id']] = ($requested[(int) $line['item_id']] ?? 0) + (float) $line['base_qty'];
+        }
+        foreach ($requested as $itemId => $qty) {
+            $remaining = ($limits[$itemId] ?? 0) - self::invoicedBaseQty($orderType, $orderId, $itemId);
+            if ($qty > $remaining + 0.0001) {
+                throw new \RuntimeException('Invoice quantity exceeds the remaining quantity for item #' . $itemId . ' (' . rtrim(rtrim(number_format(max(0, $remaining), 4), '0'), '.') . ' remaining).');
+            }
+        }
+    }
 }

@@ -52,6 +52,7 @@ final class SalesController extends Controller
             'from'  => (string) $this->request->query('from', ''),
             'to'    => (string) $this->request->query('to', ''),
             'canCreate' => PermissionService::can('sales', 'sales_invoice', 'create'),
+            'canEdit' => PermissionService::can('sales', 'sales_invoice', 'edit'),
             'canCancel' => PermissionService::can('sales', 'sales_invoice', 'cancel'),
         ])->render();
     }
@@ -94,6 +95,16 @@ final class SalesController extends Controller
             'prefillLines' => $prefillLines,
             'fromOrder'    => $fromOrder,
         ])->render();
+    }
+
+    public function editForm(int|string $id): string
+    {
+        $this->requireFeature('sales'); $this->requirePermission('sales', 'sales_invoice', 'edit');
+        $invoice = SalesInvoiceService::find((int) $id);
+        if (!$invoice || $invoice['status'] !== 'posted' || (int) $invoice['company_id'] !== (int) CompanyContextService::currentCompanyId()) { flash('error', 'Invoice not found or unavailable.'); return (string) $this->response->redirect($this->request->url('/sales/invoices'))->body(); }
+        $lines = []; foreach ($invoice['items'] as $line) { $line['prefill_item_code'] = $line['item_code']; $line['prefill_item_name'] = $line['item_name']; $line['prefill_uom_code'] = $line['uom_code'] ?? ''; $lines[] = $line; }
+        $companyId = (int) $invoice['company_id'];
+        return $this->view('sales/invoices/form', ['title' => 'Edit Sales Invoice', 'invoice' => $invoice, 'isEdit' => true, 'customers' => Database::query('SELECT id, name, code FROM customers WHERE company_id = ? AND deleted_at IS NULL AND status = \'active\' ORDER BY name', [$companyId]), 'warehouses' => Database::query('SELECT id, name FROM warehouses WHERE company_id = ? AND deleted_at IS NULL AND status = \'active\' ORDER BY name', [$companyId]), 'paymentModes' => PaymentModeService::all($companyId), 'prefillLines' => $lines, 'fromOrder' => (int) ($invoice['reference_order_id'] ?? 0)])->render();
     }
 
     public function store(): mixed
@@ -150,6 +161,7 @@ final class SalesController extends Controller
             'canCancel' => PermissionService::can('sales', 'sales_invoice', 'cancel'),
             'canPrint'  => PermissionService::can('sales', 'sales_invoice', 'print'),
             'canEdit'   => PermissionService::can('sales', 'sales_invoice', 'edit'),
+            'canEdit'   => PermissionService::can('sales', 'sales_invoice', 'edit'),
             'attachments' => \app\Services\UploadService::forDocument((int) $invoice['company_id'], 'sales_invoice', (int) $id),
         ])->render();
     }
@@ -170,6 +182,18 @@ final class SalesController extends Controller
         AuditService::log('cancel', 'sales', 'sales_invoice', $id, 'Cancelled sales invoice');
         flash('success', 'Invoice cancelled — stock and accounts reversed.');
         return $this->response->redirect($this->request->url('/sales/invoices/' . $id));
+    }
+
+    public function update(int|string $id): mixed
+    {
+        $this->requireFeature('sales'); $this->requirePermission('sales', 'sales_invoice', 'edit');
+        $old = SalesInvoiceService::find((int) $id);
+        if (!$old || $old['status'] !== 'posted') { flash('error', 'Invoice cannot be edited.'); return $this->response->back(); }
+        try {
+            SalesInvoiceService::cancel((int) $id, 'Replaced by edited invoice');
+            $newId = SalesInvoiceService::create((int) $old['company_id'], ['branch_id' => $old['branch_id'], 'invoice_date' => (string) $this->request->input('invoice_date'), 'customer_id' => (int) $this->request->input('customer_id'), 'warehouse_id' => (int) $this->request->input('warehouse_id'), 'reference_order_id' => (int) $this->request->input('reference_order_id') ?: null, 'payment_mode_id' => (int) $this->request->input('payment_mode_id'), 'received_amount' => (float) $this->request->input('received_amount'), 'narration' => (string) $this->request->input('narration', ''), 'lines' => PurchaseService::linesFromInput($this->request->input('items', []))]);
+        } catch (\RuntimeException $e) { flash('error', $e->getMessage()); return $this->response->back(); }
+        AuditService::log('update', 'sales', 'sales_invoice', $newId, 'Replaced edited sales invoice #' . $id); flash('success', 'Sales invoice updated safely.'); return $this->response->redirect($this->request->url('/sales/invoices/' . $newId));
     }
 
     public function print(int|string $id): string

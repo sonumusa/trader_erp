@@ -35,6 +35,7 @@ final class PurchaseOrderController extends Controller
             'title' => 'Purchase Orders',
             'data'  => PurchaseDocumentService::paginate('order', $companyId, $this->request->page()),
             'canCreate' => PermissionService::can('purchase', 'purchase_order', 'create'),
+            'canEdit' => PermissionService::can('purchase', 'purchase_order', 'edit'),
         ])->render();
     }
 
@@ -75,6 +76,16 @@ final class PurchaseOrderController extends Controller
             'prefillLines' => $prefillLines,
             'reference'  => $reference,
         ])->render();
+    }
+
+    public function editForm(int|string $id): string
+    {
+        $this->requireFeature('purchase'); $this->requirePermission('purchase', 'purchase_order', 'edit');
+        $order = PurchaseDocumentService::findOrder((int) $id);
+        if (!$order || (int) $order['company_id'] !== (int) CompanyContextService::currentCompanyId()) { flash('error', 'Order not found.'); return (string) $this->response->redirect($this->request->url('/purchase/orders'))->body(); }
+        $lines = []; foreach ($order['items'] as $line) { $item = Database::row('SELECT item_code, name FROM items WHERE id = ?', [(int) $line['item_id']]); $line['prefill_item_code'] = $item['item_code'] ?? ''; $line['prefill_item_name'] = $item['name'] ?? ''; $line['prefill_uom_code'] = Database::value('SELECT code FROM uoms WHERE id = ?', [(int) $line['uom_id']]); $lines[] = $line; }
+        $companyId = (int) $order['company_id'];
+        return $this->view('purchase/orders/form', ['title' => 'Edit Purchase Order', 'order' => $order, 'suppliers' => Database::query('SELECT id, name, code FROM suppliers WHERE company_id = ? AND deleted_at IS NULL AND status = \'active\' ORDER BY name', [$companyId]), 'quotations' => Database::query('SELECT id, quotation_no, quotation_date FROM purchase_quotations WHERE company_id = ? AND status = \'posted\' ORDER BY id DESC LIMIT 50', [$companyId]), 'prefillLines' => $lines, 'reference' => null, 'isEdit' => true])->render();
     }
 
     public function store(): mixed
@@ -125,5 +136,13 @@ final class PurchaseOrderController extends Controller
         AuditService::log('cancel', 'purchase', 'purchase_order', (int) $id, 'Cancelled purchase order');
         flash('success', 'Purchase order cancelled.');
         return $this->response->redirect($this->request->url('/purchase/orders'));
+    }
+
+    public function update(int|string $id): mixed
+    {
+        $this->requireFeature('purchase'); $this->requirePermission('purchase', 'purchase_order', 'edit');
+        try { PurchaseDocumentService::updateOrder((int) $id, ['supplier_id' => (int) $this->request->input('supplier_id'), 'date' => (string) $this->request->input('order_date'), 'reference_quotation_id' => (int) $this->request->input('reference_quotation_id') ?: null, 'narration' => (string) $this->request->input('narration', ''), 'lines' => PurchaseService::linesFromInput($this->request->input('items', []))]); }
+        catch (\RuntimeException $e) { flash('error', $e->getMessage()); return $this->response->back(); }
+        AuditService::log('update', 'purchase', 'purchase_order', (int) $id, 'Updated purchase order'); flash('success', 'Purchase order updated.'); return $this->response->redirect($this->request->url('/purchase/orders'));
     }
 }

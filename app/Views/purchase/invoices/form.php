@@ -3,12 +3,14 @@ $suppliers = $this->data['suppliers'];
 $warehouses = $this->data['warehouses'];
 $paymentModes = $this->data['paymentModes'];
 $fromOrder = $this->data['fromOrder'];
+$invoice = $this->data['invoice'] ?? null;
+$isEdit = (bool) ($this->data['isEdit'] ?? false);
 ?>
 <?php $this->layout('app'); ?>
 
 <div class="erp-page-head">
     <div>
-        <h1>New Purchase Invoice</h1>
+        <h1><?= $isEdit ? 'Edit' : 'New' ?> Purchase Invoice</h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="<?= $this->url('/') ?>">Home</a></li>
@@ -28,7 +30,7 @@ $fromOrder = $this->data['fromOrder'];
         (Inventory Dr / Tax Receivable Dr / Accounts Payable Cr). No draft step.</span>
 </div>
 
-<form method="post" action="<?= $this->url('/purchase/invoices') ?>">
+<form method="post" action="<?= $isEdit ? $this->url('/purchase/invoices/' . (int) $invoice['id']) : $this->url('/purchase/invoices') ?>">
     <?= $this->csrfField() ?>
     <input type="hidden" name="reference_order_id" value="<?= (int) $fromOrder ?>">
 
@@ -41,14 +43,14 @@ $fromOrder = $this->data['fromOrder'];
                     <select class="form-select" id="supplier_id" name="supplier_id" required>
                         <option value="">— Select supplier —</option>
                         <?php foreach ($suppliers as $s): ?>
-                            <option value="<?= (int) $s['id'] ?>"><?= $this->e($s['code'] . ' — ' . $s['name']) ?></option>
+                            <option value="<?= (int) $s['id'] ?>" <?= (int) ($invoice['supplier_id'] ?? 0) === (int) $s['id'] ? 'selected' : '' ?>><?= $this->e($s['code'] . ' — ' . $s['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                     <div class="form-hint mt-1"><a href="<?= $this->url('/suppliers/new') ?>" target="_blank"><i class="bi bi-plus-circle"></i> Add new supplier</a></div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label" for="invoice_date">Invoice date <span class="required-star">*</span></label>
-                    <input type="date" class="form-control" id="invoice_date" name="invoice_date" required value="<?= date('Y-m-d') ?>">
+                    <input type="date" class="form-control" id="invoice_date" name="invoice_date" required value="<?= $this->e($invoice['invoice_date'] ?? date('Y-m-d')) ?>">
                 </div>
                 <div class="col-md-5">
                     <label class="form-label" for="narration">Narration / reference</label>
@@ -59,7 +61,7 @@ $fromOrder = $this->data['fromOrder'];
                     <select class="form-select" id="warehouse_id" name="warehouse_id" required>
                         <option value="">— Select warehouse —</option>
                         <?php foreach ($warehouses as $w): ?>
-                            <option value="<?= (int) $w['id'] ?>"><?= $this->e($w['name']) ?></option>
+                            <option value="<?= (int) $w['id'] ?>" <?= (int) ($invoice['warehouse_id'] ?? 0) === (int) $w['id'] ? 'selected' : '' ?>><?= $this->e($w['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -68,13 +70,13 @@ $fromOrder = $this->data['fromOrder'];
                     <select class="form-select" id="payment_mode_id" name="payment_mode_id">
                         <option value="0">— Credit purchase —</option>
                         <?php foreach ($paymentModes as $pm): ?>
-                            <option value="<?= (int) $pm['id'] ?>"><?= $this->e($pm['name']) ?></option>
+                            <option value="<?= (int) $pm['id'] ?>" <?= (int) ($invoice['payment_mode_id'] ?? 0) === (int) $pm['id'] ? 'selected' : '' ?>><?= $this->e($pm['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label" for="paid_amount">Paid amount</label>
-                    <input type="number" step="0.01" min="0" class="form-control" id="paid_amount" name="paid_amount" value="0.00">
+                    <input type="number" step="0.01" min="0" class="form-control" id="paid_amount" name="paid_amount" value="<?= $this->e($invoice['paid_amount'] ?? '0.00') ?>">
                     <div class="form-hint">Selecting a payment mode + amount records the cash/bank payment immediately.</div>
                 </div>
             </div>
@@ -94,7 +96,7 @@ $fromOrder = $this->data['fromOrder'];
     </div>
 
     <div class="d-flex gap-2 mb-4">
-        <button type="submit" class="btn btn-primary btn-icon"><i class="bi bi-check-lg"></i> Post Purchase Invoice</button>
+        <button type="submit" class="btn btn-primary btn-icon"><i class="bi bi-check-lg"></i> <?= $isEdit ? 'Save Changes' : 'Post Purchase Invoice' ?></button>
         <a href="<?= $this->url('/purchase/invoices') ?>" class="btn btn-outline-secondary">Cancel</a>
     </div>
 </form>

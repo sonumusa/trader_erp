@@ -1730,6 +1730,10 @@ check('dashboard route registered', str_contains((string) file_get_contents(APP_
 check('voucher edit route registered', str_contains((string) file_get_contents(APP_ROOT . '/routes/web.php'), "get('/{id}/edit', [VoucherController::class, 'editForm'])"));
 check('UOM active/status columns exist', (int) Database::value("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'uoms' AND COLUMN_NAME IN ('description', 'is_active')") === 2);
 check('tax effective-date columns exist', (int) Database::value("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'taxes' AND COLUMN_NAME IN ('tax_type', 'effective_from', 'effective_to', 'description')") === 4);
+check('sales and purchase invoice edit routes registered', str_contains((string) file_get_contents(APP_ROOT . '/routes/web.php'), "get('/{id}/edit', [SalesController::class, 'editForm'])") && str_contains((string) file_get_contents(APP_ROOT . '/routes/web.php'), "get('/{id}/edit', [PurchaseController::class, 'editForm'])"));
+check('sales and purchase order edit routes registered', str_contains((string) file_get_contents(APP_ROOT . '/routes/web.php'), "get('/{id}/edit', [SalesOrderController::class, 'editForm'])") && str_contains((string) file_get_contents(APP_ROOT . '/routes/web.php'), "get('/{id}/edit', [PurchaseOrderController::class, 'editForm'])"));
+check('server order remaining validation exists', str_contains((string) file_get_contents(APP_ROOT . '/app/Services/PurchaseService.php'), 'validateOrderRemaining'));
+check('JV runtime totals exist', str_contains((string) file_get_contents(APP_ROOT . '/app/Views/vouchers/form.php'), 'journalDebit') && str_contains((string) file_get_contents(APP_ROOT . '/app/Views/vouchers/form.php'), 'journalCredit'));
 
 /* ====================================================================== *
  * Phase 10 — Costing (controlled revaluation, verification, item-wise cost)

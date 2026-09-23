@@ -16,6 +16,7 @@ $journalEntry = $this->data['journalEntry'];
         </nav>
     </div>
     <div class="actions">
+        <?php if (($this->data['canEdit'] ?? false) && $invoice['status'] === 'posted'): ?><a href="<?= $this->url('/purchase/invoices/' . (int) $invoice['id'] . '/edit') ?>" class="btn btn-outline-primary btn-icon"><i class="bi bi-pencil"></i> Edit</a><?php endif; ?>
         <?php if ($this->data['canPrint']): ?>
             <a href="<?= $this->url('/purchase/invoices/' . (int) $invoice['id'] . '/print') ?>" class="btn btn-outline-secondary btn-icon"><i class="bi bi-printer"></i> Print</a>
         <?php endif; ?>

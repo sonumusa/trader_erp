@@ -44,6 +44,7 @@ final class PurchaseInvoiceService
             $raw['transaction_date'] = (string) ($data['invoice_date'] ?? date('Y-m-d'));
             $lines[] = PurchaseService::calculateLine($raw);
         }
+        PurchaseService::validateOrderRemaining('purchase', (int) ($data['reference_order_id'] ?? 0), $lines, $companyId);
         $totals = PurchaseService::totals($lines);
 
         $paidAmount = round((float) ($data['paid_amount'] ?? 0), 2);
