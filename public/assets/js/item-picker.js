@@ -184,14 +184,17 @@
         }
         function populateUoms(sel, item, selectedUom) {
             sel.innerHTML = '<option value="">UOM</option>';
+            let stockUomId = '';
             (item.uoms || []).forEach((u) => {
                 const o = document.createElement('option');
                 o.value = u.uom_id;
                 o.dataset.factor = u.conversion_factor;
                 o.textContent = u.uom_code + (u.is_stock_uom === '1' || u.is_stock_uom === 1 ? ' (stock)' : '');
                 sel.appendChild(o);
+                if (u.is_stock_uom === '1' || u.is_stock_uom === 1) stockUomId = String(u.uom_id);
             });
-            if (selectedUom) sel.value = selectedUom;
+            // New rows default to the item's stock UOM; existing rows keep their saved UOM.
+            sel.value = selectedUom || stockUomId || (item.stock_uom_id ? String(item.stock_uom_id) : '');
         }
     }
 
