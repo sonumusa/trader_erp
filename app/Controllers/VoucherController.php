@@ -134,17 +134,7 @@ final class VoucherController extends Controller
 
         // Journal lines from the dynamic grid
         $lines = [];
-        $rawAccounts = $this->request->input('lines.account_id', []);
-        if (is_array($rawAccounts)) {
-            foreach ($rawAccounts as $i => $accountId) {
-                $lines[] = [
-                    'account_id' => (int) $accountId,
-                    'debit'      => (float) ($this->request->input('lines.debit')[$i] ?? 0),
-                    'credit'     => (float) ($this->request->input('lines.credit')[$i] ?? 0),
-                    'narration'  => (string) ($this->request->input('lines.narration')[$i] ?? ''),
-                ];
-            }
-        }
+        $lines = $this->journalLinesFromInput();
 
         try {
             $id = VoucherService::create($companyId, [
@@ -251,16 +241,23 @@ final class VoucherController extends Controller
     private function journalLinesFromInput(): array
     {
         $lines = [];
-        $accounts = $this->request->input('lines.account_id', []);
+        $inputLines = $this->request->input('lines', []);
+        if (!is_array($inputLines)) {
+            return $lines;
+        }
+        $accounts = $inputLines['account_id'] ?? [];
+        $debits = $inputLines['debit'] ?? [];
+        $credits = $inputLines['credit'] ?? [];
+        $narrations = $inputLines['narration'] ?? [];
         if (!is_array($accounts)) {
             return $lines;
         }
         foreach ($accounts as $i => $accountId) {
             $lines[] = [
                 'account_id' => (int) $accountId,
-                'debit' => (float) ($this->request->input('lines.debit')[$i] ?? 0),
-                'credit' => (float) ($this->request->input('lines.credit')[$i] ?? 0),
-                'narration' => (string) ($this->request->input('lines.narration')[$i] ?? ''),
+                'debit' => (float) ($debits[$i] ?? 0),
+                'credit' => (float) ($credits[$i] ?? 0),
+                'narration' => (string) ($narrations[$i] ?? ''),
             ];
         }
         return $lines;
