@@ -44,6 +44,7 @@ $navItems = [
         ['url' => '/suppliers', 'icon' => 'truck', 'svg' => 'truck', 'label' => 'Suppliers', 'show' => $feat('purchase') && $can('purchase', 'supplier', 'view')],
         ['url' => '/items', 'icon' => 'box', 'svg' => 'box', 'label' => 'Items', 'show' => $feat('inventory') && $can('inventory', 'item', 'view')],
         ['url' => '/item-groups', 'icon' => 'folder2', 'svg' => 'folder', 'label' => 'Item Groups', 'show' => $feat('inventory') && $can('inventory', 'item_group', 'view')],
+        ['url' => '/uoms', 'icon' => 'rulers', 'svg' => 'rulers', 'label' => 'Units of Measure', 'show' => $feat('inventory') && $can('inventory', 'uom', 'view')],
         ['url' => '/warehouses', 'icon' => 'building', 'svg' => 'building', 'label' => 'Warehouses', 'show' => $feat('inventory') && $feat('warehouses') && $can('inventory', 'warehouse', 'view')],
     ],
     'ACCOUNTING' => [
@@ -62,6 +63,7 @@ $navItems = [
         ['url' => '/settings/financial-years', 'icon' => 'calendar-range', 'svg' => 'calendar', 'label' => 'Financial Years', 'show' => $can('settings', 'financial_year', 'view')],
         ['url' => '/settings/numbering', 'icon' => 'hash', 'svg' => 'hash', 'label' => 'Document Numbering', 'show' => $can('settings', 'numbering', 'view')],
         ['url' => '/settings/payment-modes', 'icon' => 'wallet2', 'svg' => 'wallet', 'label' => 'Payment Modes', 'show' => $feat('accounting') && $can('settings', 'payment_mode', 'view')],
+        ['url' => '/settings/taxes', 'icon' => 'percent', 'svg' => 'percent', 'label' => 'Tax Rates', 'show' => $can('settings', 'tax', 'view')],
         ['url' => '/settings/closing', 'icon' => 'calendar-lock', 'svg' => 'lock', 'label' => 'Closing Period', 'show' => $can('settings', 'closing', 'view')],
         ['url' => '/settings/backups', 'icon' => 'cloud-arrow-down', 'svg' => 'backup', 'label' => 'Backups', 'show' => $can('settings', 'backup', 'view')],
         ['url' => '/settings', 'icon' => 'gear', 'svg' => 'gear', 'label' => 'Settings', 'show' => $can('settings', 'setting', 'view')],
