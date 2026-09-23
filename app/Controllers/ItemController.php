@@ -101,7 +101,7 @@ final class ItemController extends Controller
                     t.rate AS tax_rate, t.name AS tax_name
              FROM items i
              LEFT JOIN uoms u ON u.id = i.stock_uom_id
-             LEFT JOIN taxes t ON t.id = i.tax_id AND t.is_active = 1 AND t.deleted_at IS NULL
+             LEFT JOIN taxes t ON t.id = i.tax_id AND t.is_active = 1 AND t.deleted_at IS NULL AND (t.effective_from IS NULL OR t.effective_from <= CURDATE()) AND (t.effective_to IS NULL OR t.effective_to >= CURDATE())
              WHERE i.company_id = ? AND i.deleted_at IS NULL AND i.status = \'active\'
                AND (i.item_code LIKE ? OR i.name LIKE ? OR i.barcode LIKE ?)
              ORDER BY i.item_code
@@ -380,7 +380,7 @@ final class ItemController extends Controller
             'title'       => $item ? 'Edit Item' : 'New Item',
             'item'        => $item,
             'groups'      => Database::query('SELECT id, name FROM item_groups WHERE deleted_at IS NULL ORDER BY name'),
-            'uoms'        => Database::query('SELECT id, name, code FROM uoms WHERE deleted_at IS NULL ORDER BY name'),
+            'uoms'        => Database::query('SELECT id, name, code FROM uoms WHERE deleted_at IS NULL AND is_active = 1 ORDER BY name'),
             'itemUoms'    => $item ? UomService::itemUoms((int) $item['id']) : [],
             'taxes'       => Database::query('SELECT id, name, rate FROM taxes WHERE company_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name', [$companyId]),
             'accounts'    => AccountService::leafAccounts($companyId),

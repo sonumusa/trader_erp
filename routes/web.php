@@ -45,6 +45,7 @@ use app\Controllers\VoucherController;
 use app\Controllers\WarehouseController;
 
 $router->get('/', [DashboardController::class, 'index'], ['auth']);
+$router->get('/dashboard', [DashboardController::class, 'index'], ['auth']);
 
 /* ---------------- Authentication ---------------- */
 $router->get('/login', [AuthController::class, 'showLogin'], ['guest']);
@@ -80,6 +81,7 @@ $router->group('/companies', ['auth'], function ($r) {
     $r->post('', [CompanyController::class, 'store'], ['csrf']);
     $r->get('/{id}/edit', [CompanyController::class, 'editForm']);
     $r->post('/{id}', [CompanyController::class, 'update'], ['csrf']);
+    $r->post('/{id}/delete', [CompanyController::class, 'destroy'], ['csrf']);
 });
 
 /* ---------------- Branches ---------------- */
@@ -155,6 +157,8 @@ $router->group('/vouchers', ['auth'], function ($r) {
     $r->get('', [VoucherController::class, 'index']);
     $r->get('/new', [VoucherController::class, 'createForm']);
     $r->post('', [VoucherController::class, 'store'], ['csrf']);
+    $r->get('/{id}/edit', [VoucherController::class, 'editForm']);
+    $r->post('/{id}', [VoucherController::class, 'update'], ['csrf']);
     $r->get('/{id}', [VoucherController::class, 'show']);
     $r->get('/{id}/print', [VoucherController::class, 'print']);
     $r->get('/{id}/journal', [VoucherController::class, 'journal']);
@@ -320,6 +324,11 @@ $router->group('/settings', ['auth'], function ($r) {
     $r->post('/company/switch', [CompanyController::class, 'switch'], ['csrf']);
     $r->post('/branch/switch', [BranchController::class, 'switchBranch'], ['csrf']);
 });
+
+$router->get('/tax-rates', [TaxController::class, 'index'], ['auth']);
+$router->post('/tax-rates', [TaxController::class, 'store'], ['auth', 'csrf']);
+$router->post('/tax-rates/{id}', [TaxController::class, 'update'], ['auth', 'csrf']);
+$router->post('/tax-rates/{id}/delete', [TaxController::class, 'destroy'], ['auth', 'csrf']);
 
 /* ---------------- Audit ---------------- */
 $router->get('/audit', [AuditController::class, 'index'], ['auth']);

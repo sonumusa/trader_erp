@@ -24,7 +24,7 @@ final class UomService
         return Database::query(
             'SELECT iu.*, u.name AS uom_name, u.code AS uom_code
              FROM item_uoms iu
-             JOIN uoms u ON u.id = iu.uom_id AND u.deleted_at IS NULL
+             JOIN uoms u ON u.id = iu.uom_id AND u.deleted_at IS NULL AND u.is_active = 1
              WHERE iu.item_id = ?
              ORDER BY iu.is_stock_uom DESC, iu.id',
             [$itemId]

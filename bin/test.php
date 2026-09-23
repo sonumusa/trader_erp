@@ -1697,6 +1697,40 @@ check('trial balance still balanced after vouchers', (function () use ($companyI
     return round(array_sum(array_column($tb, 'debit')), 2) === round(array_sum(array_column($tb, 'credit')), 2);
 })());
 
+section('Phase 9 — voucher edit regression');
+$cpvBeforeEntries = (int) Database::value(
+    'SELECT COUNT(*) FROM journal_entries WHERE source_document_type = \'voucher\' AND source_document_id = ? AND status = \'posted\'',
+    [$cpvId]
+);
+VoucherService::update($cpvId, [
+    'voucher_type' => 'cash_payment',
+    'voucher_date' => '2026-08-22',
+    'narration' => 'Edited supplier payment',
+    'party_type' => 'supplier',
+    'party_id' => $supId,
+    'amount' => 1750.00,
+]);
+$cpvEdited = Database::row('SELECT * FROM vouchers WHERE id = ?', [$cpvId]);
+check('voucher edit keeps document id and updates amount', (int) $cpvEdited['id'] === $cpvId && (float) $cpvEdited['amount'] === 1750.00);
+check('voucher edit reverses old posting and creates one live posting',
+    (int) Database::value('SELECT COUNT(*) FROM journal_entries WHERE source_document_type = \'voucher\' AND source_document_id = ? AND status = \'reversed\'', [$cpvId]) >= $cpvBeforeEntries
+    && (int) Database::value('SELECT COUNT(*) FROM journal_entries WHERE source_document_type = \'voucher\' AND source_document_id = ? AND status = \'posted\'', [$cpvId]) === 1
+);
+check('edited voucher remains balanced', (function () use ($cpvId) {
+    $r = Database::row('SELECT COALESCE(SUM(jel.debit),0) AS dr, COALESCE(SUM(jel.credit),0) AS cr FROM journal_entry_lines jel JOIN journal_entries je ON je.id = jel.journal_entry_id WHERE je.source_document_type = \'voucher\' AND je.source_document_id = ? AND je.status = \'posted\'', [$cpvId]);
+    return round((float) $r['dr'], 2) === round((float) $r['cr'], 2);
+})());
+
+section('Regression contracts — routes, password UI and master data');
+$authSource = (string) file_get_contents(APP_ROOT . '/app/Controllers/AuthController.php');
+$loginSource = (string) file_get_contents(APP_ROOT . '/app/Views/auth/login.php');
+check('login redirects to application root', str_contains($authSource, "url('/'))") && !str_contains($authSource, "url('/public/')"));
+check('login password toggle is keyboard accessible', str_contains($loginSource, 'togglePassword') && str_contains($loginSource, 'aria-label'));
+check('dashboard route registered', str_contains((string) file_get_contents(APP_ROOT . '/routes/web.php'), "get('/dashboard'"));
+check('voucher edit route registered', str_contains((string) file_get_contents(APP_ROOT . '/routes/web.php'), "get('/{id}/edit', [VoucherController::class, 'editForm'])"));
+check('UOM active/status columns exist', (int) Database::value("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'uoms' AND COLUMN_NAME IN ('description', 'is_active')") === 2);
+check('tax effective-date columns exist', (int) Database::value("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'taxes' AND COLUMN_NAME IN ('tax_type', 'effective_from', 'effective_to', 'description')") === 4);
+
 /* ====================================================================== *
  * Phase 10 — Costing (controlled revaluation, verification, item-wise cost)
  * ====================================================================== */

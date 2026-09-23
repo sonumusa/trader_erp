@@ -123,6 +123,43 @@ final class CompanyController extends Controller
         return $this->response->redirect($this->request->url('/companies'));
     }
 
+    public function destroy(int|string $id): mixed
+    {
+        $this->requirePermission('settings', 'company', 'delete');
+        $id = (int) $id;
+        $company = Database::row('SELECT * FROM companies WHERE id = ? AND deleted_at IS NULL', [$id]);
+        if (!$company) {
+            flash('error', 'Company not found.');
+            return $this->response->back();
+        }
+        if ($id === (int) CompanyContextService::currentCompanyId()) {
+            flash('error', 'Switch to another company before archiving this company.');
+            return $this->response->back();
+        }
+
+        $transactionTables = [
+            'journal_entries', 'vouchers', 'sales_invoices', 'purchase_invoices',
+            'sales_returns', 'purchase_returns', 'stock_ledger', 'stock_transfers',
+            'stock_adjustments',
+        ];
+        $transactionCount = 0;
+        foreach ($transactionTables as $table) {
+            $transactionCount += (int) Database::value("SELECT COUNT(*) FROM {$table} WHERE company_id = ?", [$id]);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        Database::transaction(function () use ($id, $now): void {
+            Database::execute('UPDATE companies SET deleted_at = ?, updated_at = ? WHERE id = ?', [$now, $now, $id]);
+            Database::execute('UPDATE branches SET deleted_at = ?, is_active = 0, updated_at = ? WHERE company_id = ? AND deleted_at IS NULL', [$now, $now, $id]);
+            Database::execute('UPDATE warehouses SET deleted_at = ?, status = \'inactive\', updated_at = ? WHERE company_id = ? AND deleted_at IS NULL', [$now, $now, $id]);
+            Database::execute('UPDATE financial_years SET is_active = 0, updated_at = ? WHERE company_id = ?', [$now, $id]);
+        });
+
+        AuditService::log('archive', 'settings', 'company', $id, 'Archived company ' . $company['name'] . ($transactionCount > 0 ? ' with retained transaction history' : ' with no financial transactions'));
+        flash('success', $transactionCount > 0 ? 'Company archived. Financial history was retained.' : 'Company removed from the active company list.');
+        return $this->response->redirect($this->request->url('/companies'));
+    }
+
     /** POST /settings/company/switch — company switcher in the top bar. */
     public function switch(): mixed
     {

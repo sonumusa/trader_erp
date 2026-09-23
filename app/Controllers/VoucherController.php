@@ -52,6 +52,7 @@ final class VoucherController extends Controller
             'from'  => (string) $this->request->query('from', ''),
             'to'    => (string) $this->request->query('to', ''),
             'canCreate' => PermissionService::can('accounting', 'voucher', 'create'),
+            'canEdit' => PermissionService::can('accounting', 'voucher', 'edit'),
             'canCancel' => PermissionService::can('accounting', 'voucher', 'cancel'),
         ])->render();
     }
@@ -82,6 +83,36 @@ final class VoucherController extends Controller
             'bankModes'    => $bankModes,
             'accounts'     => AccountService::leafAccounts($companyId),
             'cashBankAccounts' => VoucherService::cashBankAccounts($companyId),
+            'voucher'      => null,
+            'isEdit'       => false,
+        ])->render();
+    }
+
+    public function editForm(int|string $id): string
+    {
+        $this->requireFeature('accounting');
+        $this->requirePermission('accounting', 'voucher', 'edit');
+        $voucher = VoucherService::find((int) $id);
+        if (!$voucher || (int) $voucher['company_id'] !== (int) CompanyContextService::currentCompanyId()) {
+            flash('error', 'Voucher not found.');
+            return (string) $this->response->redirect($this->request->url('/vouchers'))->body();
+        }
+        if ($voucher['status'] !== 'posted') {
+            flash('error', 'Cancelled vouchers cannot be edited.');
+            return (string) $this->response->redirect($this->request->url('/vouchers/' . (int) $id))->body();
+        }
+        $companyId = (int) $voucher['company_id'];
+        return $this->view('vouchers/form', [
+            'title' => 'Edit ' . VoucherService::TYPES[$voucher['voucher_type']]['label'],
+            'types' => VoucherService::TYPES,
+            'voucherType' => $voucher['voucher_type'],
+            'customers' => Database::query('SELECT id, name, code FROM customers WHERE company_id = ? AND deleted_at IS NULL AND status = \'active\' ORDER BY name', [$companyId]),
+            'suppliers' => Database::query('SELECT id, name, code FROM suppliers WHERE company_id = ? AND deleted_at IS NULL AND status = \'active\' ORDER BY name', [$companyId]),
+            'bankModes' => array_values(array_filter(PaymentModeService::all($companyId), fn($m) => (int) $m['is_bank'] === 1 && (int) ($m['account_id'] ?? 0) > 0)),
+            'accounts' => AccountService::leafAccounts($companyId),
+            'cashBankAccounts' => VoucherService::cashBankAccounts($companyId),
+            'voucher' => $voucher,
+            'isEdit' => true,
         ])->render();
     }
 
@@ -161,6 +192,7 @@ final class VoucherController extends Controller
             'journalEntry' => $entry,
             'canCancel' => PermissionService::can('accounting', 'voucher', 'cancel'),
             'canPrint'  => PermissionService::can('accounting', 'voucher', 'print'),
+            'canEdit'   => PermissionService::can('accounting', 'voucher', 'edit'),
         ])->render();
     }
 
@@ -180,6 +212,58 @@ final class VoucherController extends Controller
         AuditService::log('cancel', 'accounting', 'voucher', $id, 'Cancelled voucher');
         flash('success', 'Voucher cancelled — accounting reversed.');
         return $this->response->redirect($this->request->url('/vouchers/' . $id));
+    }
+
+    public function update(int|string $id): mixed
+    {
+        $this->requireFeature('accounting');
+        $this->requirePermission('accounting', 'voucher', 'edit');
+        $id = (int) $id;
+        $v = new Validator();
+        if (!$v->validate($this->request->all(), ['voucher_type' => 'required|in:cash_payment,bank_payment,cash_receipt,bank_receipt,journal,contra', 'voucher_date' => 'required|date'])) {
+            flash('error', $v->firstError() ?? 'Please check the form.');
+            return $this->response->back();
+        }
+        $d = $v->data();
+        try {
+            VoucherService::update($id, [
+                'voucher_type' => $d['voucher_type'],
+                'voucher_date' => $d['voucher_date'],
+                'narration' => (string) $this->request->input('narration', ''),
+                'party_type' => (string) $this->request->input('party_type', ''),
+                'party_id' => (int) ($this->request->input('party_id') ?? 0),
+                'payment_mode_id' => (int) ($this->request->input('payment_mode_id') ?? 0),
+                'amount' => (float) ($this->request->input('amount') ?? 0),
+                'counter_account_id' => (int) ($this->request->input('counter_account_id') ?? 0),
+                'from_account_id' => (int) ($this->request->input('from_account_id') ?? 0),
+                'to_account_id' => (int) ($this->request->input('to_account_id') ?? 0),
+                'lines' => $this->journalLinesFromInput(),
+            ]);
+        } catch (\RuntimeException $e) {
+            flash('error', $e->getMessage());
+            return $this->response->back();
+        }
+        AuditService::log('update', 'accounting', 'voucher', $id, 'Edited voucher and rebuilt accounting posting');
+        flash('success', 'Voucher updated — accounting was rebuilt safely.');
+        return $this->response->redirect($this->request->url('/vouchers/' . $id));
+    }
+
+    private function journalLinesFromInput(): array
+    {
+        $lines = [];
+        $accounts = $this->request->input('lines.account_id', []);
+        if (!is_array($accounts)) {
+            return $lines;
+        }
+        foreach ($accounts as $i => $accountId) {
+            $lines[] = [
+                'account_id' => (int) $accountId,
+                'debit' => (float) ($this->request->input('lines.debit')[$i] ?? 0),
+                'credit' => (float) ($this->request->input('lines.credit')[$i] ?? 0),
+                'narration' => (string) ($this->request->input('lines.narration')[$i] ?? ''),
+            ];
+        }
+        return $lines;
     }
 
     public function print(int|string $id): string

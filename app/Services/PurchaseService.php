@@ -50,7 +50,8 @@ final class PurchaseService
         $taxRate = 0.0;
         $taxAmount = 0.0;
         if ((int) ($item['tax_id'] ?? 0) > 0) {
-            $taxRate = (float) Database::value('SELECT rate FROM taxes WHERE id = ? AND is_active = 1 AND deleted_at IS NULL', [(int) $item['tax_id']]);
+            $taxDate = (string) ($line['transaction_date'] ?? date('Y-m-d'));
+            $taxRate = (float) Database::value('SELECT rate FROM taxes WHERE id = ? AND is_active = 1 AND deleted_at IS NULL AND (effective_from IS NULL OR effective_from <= ?) AND (effective_to IS NULL OR effective_to >= ?)', [(int) $item['tax_id'], $taxDate, $taxDate]);
             $taxAmount = round($net * $taxRate / 100, 2);
         }
         $amount = round($net + $taxAmount, 2);

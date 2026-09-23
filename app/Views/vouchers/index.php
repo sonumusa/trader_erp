@@ -1,6 +1,7 @@
 <?php /** @var app\Core\View $this */
 $data = $this->data['data'];
 $types = $this->data['types'];
+$canEdit = $this->data['canEdit'] ?? false;
 ?>
 <?php $this->layout('app'); ?>
 
@@ -78,6 +79,7 @@ $types = $this->data['types'];
                         </td>
                         <td class="actions-cell">
                             <a href="<?= $this->url('/vouchers/' . (int) $v['id']) ?>" class="btn btn-sm btn-outline-primary btn-icon" title="View"><i class="bi bi-eye"></i></a>
+                            <?php if ($canEdit && $v['status'] === 'posted'): ?><a href="<?= $this->url('/vouchers/' . (int) $v['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary btn-icon" title="Edit"><i class="bi bi-pencil"></i></a><?php endif; ?>
                             <a href="<?= $this->url('/vouchers/' . (int) $v['id'] . '/print') ?>" class="btn btn-sm btn-outline-secondary btn-icon" title="Print"><i class="bi bi-printer"></i></a>
                         </td>
                     </tr>

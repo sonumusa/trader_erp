@@ -35,6 +35,10 @@
                             <input type="text" class="form-control" id="code" name="code" required maxlength="20" placeholder="e.g. PCS">
                             <div class="form-hint">Short code, stored uppercase.</div>
                         </div>
+                        <div class="col-12">
+                            <label class="form-label" for="description">Description</label>
+                            <input type="text" class="form-control" id="description" name="description" maxlength="255">
+                        </div>
                     </div>
                     <div class="mt-3">
                         <button type="submit" class="btn btn-primary btn-icon"><i class="bi bi-plus-lg"></i> Add UOM</button>
@@ -50,20 +54,23 @@
                 <div class="table-responsive erp-table-wrap">
                     <table class="table erp-table mb-0">
                         <thead>
-                            <tr><th>Name</th><th>Code</th><th>Items using it</th><th class="actions-cell">Actions</th></tr>
+                            <tr><th>Name</th><th>Code</th><th>Status</th><th>Items using it</th><th class="actions-cell">Actions</th></tr>
                         </thead>
                         <tbody>
                         <?php foreach ($this->data['uoms'] as $u): ?>
                             <tr>
                                 <td class="fw-semibold"><?= $this->e($u['name']) ?></td>
                                 <td><code><?= $this->e($u['code']) ?></code></td>
+                                <td><?= (int) $u['is_active'] === 1 ? '<span class="badge badge-soft-success">Active</span>' : '<span class="badge badge-soft-danger">Inactive</span>' ?></td>
                                 <td><span class="badge badge-soft-neutral"><?= (int) $u['item_count'] ?></span></td>
                                 <td class="actions-cell">
                                     <button class="btn btn-sm btn-outline-primary btn-icon" title="Edit"
                                             data-bs-toggle="modal" data-bs-target="#editModal"
                                             data-id="<?= (int) $u['id'] ?>"
                                             data-name="<?= $this->e($u['name']) ?>"
-                                            data-code="<?= $this->e($u['code']) ?>">
+                                            data-code="<?= $this->e($u['code']) ?>"
+                                            data-description="<?= $this->e($u['description'] ?? '') ?>"
+                                            data-active="<?= (int) ($u['is_active'] ?? 1) ?>">
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <?php if ((int) $u['item_count'] === 0): ?>
@@ -76,7 +83,7 @@
                             </tr>
                         <?php endforeach; ?>
                         <?php if (!$this->data['uoms']): ?>
-                            <tr><td colspan="4"><div class="empty-state"><i class="bi bi-rulers"></i>No UOMs yet.</div></td></tr>
+                            <tr><td colspan="5"><div class="empty-state"><i class="bi bi-rulers"></i>No UOMs yet.</div></td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -105,6 +112,14 @@
                         <label class="form-label" for="edit_code">Code</label>
                         <input type="text" class="form-control" id="edit_code" name="code" required maxlength="20">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="edit_description">Description</label>
+                        <input type="text" class="form-control" id="edit_description" name="description" maxlength="255">
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="edit_active" name="is_active" value="1">
+                        <label class="form-check-label" for="edit_active">Active</label>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -123,6 +138,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = e.relatedTarget;
         document.getElementById('edit_name').value = btn.dataset.name;
         document.getElementById('edit_code').value = btn.dataset.code;
+        document.getElementById('edit_description').value = btn.dataset.description || '';
+        document.getElementById('edit_active').checked = btn.dataset.active === '1';
         document.getElementById('uomEditForm').action = '/uoms/' + btn.dataset.id;
     });
 });

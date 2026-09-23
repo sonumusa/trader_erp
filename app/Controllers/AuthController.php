@@ -56,7 +56,7 @@ final class AuthController extends Controller
         if (AuthService::attempt($email, $password, $ip)) {
             AuditService::log('login', 'auth', null, null, "User signed in: {$email}");
             flash('success', 'Welcome back!');
-            return $this->response->redirect($this->request->url('/public/'));
+            return $this->response->redirect($this->request->url('/'));
         }
 
         AuditService::log('failed_login', 'auth', null, null, "Failed sign-in attempt for: {$email}");

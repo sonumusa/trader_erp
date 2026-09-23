@@ -39,6 +39,7 @@ final class SalesInvoiceService
 
         $lines = [];
         foreach ($rawLines as $raw) {
+            $raw['transaction_date'] = (string) ($data['invoice_date'] ?? date('Y-m-d'));
             $lines[] = PurchaseService::calculateLine($raw);
         }
         $totals = PurchaseService::totals($lines);

@@ -144,6 +144,70 @@ final class VoucherService
         });
     }
 
+    /**
+     * Replace a posted voucher without losing its audit history. Existing
+     * journal entries are reversed, then the same voucher is rebuilt and a
+     * fresh balanced entry is posted against it.
+     */
+    public static function update(int $voucherId, array $data): void
+    {
+        $voucher = Database::row('SELECT * FROM vouchers WHERE id = ?', [$voucherId]);
+        if (!$voucher || $voucher['status'] !== 'posted') {
+            throw new \RuntimeException('Only posted vouchers can be edited. Cancelled vouchers are immutable.');
+        }
+        $type = (string) ($data['voucher_type'] ?? $voucher['voucher_type']);
+        if (!isset(self::TYPES[$type])) {
+            throw new \RuntimeException('Select a valid voucher type.');
+        }
+        $entryDate = (string) ($data['voucher_date'] ?? '');
+        if (!\app\Core\Validator::isValidDate($entryDate)) {
+            throw new \RuntimeException('Invalid voucher date.');
+        }
+        ClosingPeriodService::guardDate($entryDate, 'edit voucher', 'accounting');
+        $companyId = (int) $voucher['company_id'];
+        $lines = match ($type) {
+            'cash_payment', 'bank_payment' => self::paymentLines($companyId, $data),
+            'cash_receipt', 'bank_receipt' => self::receiptLines($companyId, $data),
+            'journal' => self::journalLines($companyId, $data),
+            'contra' => self::contraLines($companyId, $data),
+        };
+        $amount = round((float) ($data['amount'] ?? 0), 2);
+
+        Database::transaction(function () use ($voucher, $voucherId, $data, $type, $entryDate, $lines, $amount, $companyId): void {
+            $entries = Database::query(
+                'SELECT id FROM journal_entries WHERE source_document_type = \'voucher\' AND source_document_id = ? AND status = \'posted\' ORDER BY id',
+                [$voucherId]
+            );
+            foreach ($entries as $entry) {
+                AccountingEngine::reverse((int) $entry['id'], 'Edit ' . $voucher['voucher_no']);
+            }
+
+            $now = date('Y-m-d H:i:s');
+            Database::execute(
+                'UPDATE vouchers SET voucher_type = ?, voucher_date = ?, party_type = ?, party_id = ?, payment_mode_id = ?, amount = ?, narration = ?, updated_at = ? WHERE id = ?',
+                [$type, $entryDate, $data['party_type'] ?? null, !empty($data['party_id']) ? (int) $data['party_id'] : null, !empty($data['payment_mode_id']) ? (int) $data['payment_mode_id'] : null, $amount, mb_substr((string) ($data['narration'] ?? ''), 0, 500), $now, $voucherId]
+            );
+            Database::execute('DELETE FROM voucher_lines WHERE voucher_id = ?', [$voucherId]);
+            $stmt = Database::pdo()->prepare(
+                'INSERT INTO voucher_lines (voucher_id, account_id, debit, credit, party_type, party_id, narration) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            foreach ($lines as $line) {
+                $stmt->execute([$voucherId, (int) $line['account_id'], $line['debit'], $line['credit'], $line['party_type'] ?? null, $line['party_id'] ?? null, mb_substr((string) ($line['narration'] ?? ''), 0, 255)]);
+            }
+            AccountingEngine::post([
+                'company_id' => $companyId,
+                'branch_id' => $voucher['branch_id'],
+                'entry_date' => $entryDate,
+                'voucher_type' => $type,
+                'entry_no' => $voucher['voucher_no'],
+                'source_document_type' => 'voucher',
+                'source_document_id' => $voucherId,
+                'narration' => self::TYPES[$type]['label'] . ' ' . $voucher['voucher_no'] . ((string) ($data['narration'] ?? '') !== '' ? ' — ' . $data['narration'] : ''),
+                'lines' => $lines,
+            ]);
+        });
+    }
+
     /* ------------------------------------------------------------------ */
 
     private static function paymentLines(int $companyId, array $data): array

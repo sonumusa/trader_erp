@@ -19,6 +19,9 @@ $typeMeta = \app\Services\VoucherService::TYPES[$voucher['voucher_type']];
         <?php if ($this->data['canPrint']): ?>
             <a href="<?= $this->url('/vouchers/' . (int) $voucher['id'] . '/print') ?>" class="btn btn-outline-secondary btn-icon"><i class="bi bi-printer"></i> Print</a>
         <?php endif; ?>
+        <?php if (($this->data['canEdit'] ?? false) && $voucher['status'] === 'posted'): ?>
+            <a href="<?= $this->url('/vouchers/' . (int) $voucher['id'] . '/edit') ?>" class="btn btn-outline-primary btn-icon"><i class="bi bi-pencil"></i> Edit</a>
+        <?php endif; ?>
         <a href="<?= $this->url('/vouchers/' . (int) $voucher['id'] . '/journal') ?>" class="btn btn-outline-primary btn-icon"><i class="bi bi-journal-text"></i> View Accounting</a>
         <?php if ($voucher['party_type'] === 'customer'): ?>
             <a href="<?= $this->url('/customers/' . (int) $voucher['party_id'] . '/ledger') ?>" class="btn btn-outline-primary btn-icon"><i class="bi bi-journal-arrow-down"></i> Customer Ledger</a>

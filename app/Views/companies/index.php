@@ -64,6 +64,12 @@
                             <a href="<?= $this->url('/companies/' . (int) $c['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary btn-icon" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <?php if ((int) $c['id'] !== (int) $this->data['currentId']): ?>
+                                <form method="post" action="<?= $this->url('/companies/' . (int) $c['id'] . '/delete') ?>" class="d-inline" data-confirm="Archive company '<?= $this->e($c['name']) ?>'? Its records will be retained and it will disappear from active company selectors.">
+                                    <?= $this->csrfField() ?>
+                                    <button class="btn btn-sm btn-outline-danger btn-icon" title="Archive company"><i class="bi bi-archive"></i></button>
+                                </form>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

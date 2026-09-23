@@ -18,7 +18,7 @@ return [
     'settings' => [
         'setting'        => ['view', 'edit'],
         'feature'        => ['view', 'edit'],
-        'company'        => ['view', 'create', 'edit'],
+        'company'        => ['view', 'create', 'edit', 'delete'],
         'branch'         => ['view', 'create', 'edit', 'delete'],
         'financial_year' => ['view', 'create', 'edit', 'close'],
         'numbering'      => ['view', 'edit', 'reset'],
@@ -38,7 +38,7 @@ return [
     'accounting' => [
         'account' => ['view', 'create', 'edit', 'delete'],
         'defaults' => ['view', 'edit'],
-        'voucher' => ['view', 'create', 'cancel', 'print'],
+        'voucher' => ['view', 'create', 'edit', 'cancel', 'print'],
     ],
     'inventory' => [
         'warehouse'    => ['view', 'create', 'edit', 'delete'],

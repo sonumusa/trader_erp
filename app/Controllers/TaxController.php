@@ -47,17 +47,28 @@ final class TaxController extends Controller
         $v = new Validator();
         if (!$v->validate($this->request->all(), [
             'name' => 'required|max:80',
+            'tax_type' => 'required|max:40',
             'rate' => 'required|numeric|min:0|max:100',
+            'effective_from' => 'date',
+            'effective_to' => 'date',
         ])) {
             flash('error', $v->firstError() ?? 'Please check the form.');
             return $this->response->back();
         }
         $d = $v->data();
+        if (!empty($d['effective_from']) && !empty($d['effective_to']) && $d['effective_from'] > $d['effective_to']) {
+            flash('error', 'Effective end date must be on or after the start date.');
+            return $this->response->back();
+        }
+        if (Database::value('SELECT id FROM taxes WHERE company_id = ? AND name = ? AND deleted_at IS NULL', [CompanyContextService::currentCompanyId(), $d['name']])) {
+            flash('error', 'A tax rate with this name already exists.');
+            return $this->response->back();
+        }
 
         Database::execute(
-            'INSERT INTO taxes (company_id, name, rate, is_system, is_active, created_at, updated_at)
-             VALUES (?, ?, ?, 0, 1, ?, ?)',
-            [CompanyContextService::currentCompanyId(), $d['name'], (float) $d['rate'], date('Y-m-d H:i:s'), date('Y-m-d H:i:s')]
+            'INSERT INTO taxes (company_id, name, tax_type, rate, effective_from, effective_to, description, is_system, is_active, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)',
+            [CompanyContextService::currentCompanyId(), $d['name'], $d['tax_type'], (float) $d['rate'], $d['effective_from'] ?: null, $d['effective_to'] ?: null, $d['description'] ?? '', date('Y-m-d H:i:s'), date('Y-m-d H:i:s')]
         );
         $id = (int) Database::lastInsertId();
 
@@ -74,16 +85,27 @@ final class TaxController extends Controller
         $v = new Validator();
         if (!$v->validate($this->request->all(), [
             'name' => 'required|max:80',
+            'tax_type' => 'required|max:40',
             'rate' => 'required|numeric|min:0|max:100',
+            'effective_from' => 'date',
+            'effective_to' => 'date',
         ])) {
             flash('error', $v->firstError() ?? 'Please check the form.');
             return $this->response->back();
         }
         $d = $v->data();
+        if (!empty($d['effective_from']) && !empty($d['effective_to']) && $d['effective_from'] > $d['effective_to']) {
+            flash('error', 'Effective end date must be on or after the start date.');
+            return $this->response->back();
+        }
+        if (Database::value('SELECT id FROM taxes WHERE company_id = ? AND name = ? AND id != ? AND deleted_at IS NULL', [CompanyContextService::currentCompanyId(), $d['name'], $id])) {
+            flash('error', 'A tax rate with this name already exists.');
+            return $this->response->back();
+        }
 
         Database::execute(
-            'UPDATE taxes SET name = ?, rate = ?, is_active = ?, updated_at = ? WHERE id = ?',
-            [$d['name'], (float) $d['rate'], ($d['is_active'] ?? '1') === '1' ? 1 : 0, date('Y-m-d H:i:s'), $id]
+            'UPDATE taxes SET name = ?, tax_type = ?, rate = ?, effective_from = ?, effective_to = ?, description = ?, is_active = ?, updated_at = ? WHERE id = ?',
+            [$d['name'], $d['tax_type'], (float) $d['rate'], $d['effective_from'] ?: null, $d['effective_to'] ?: null, $d['description'] ?? '', ($d['is_active'] ?? '1') === '1' ? 1 : 0, date('Y-m-d H:i:s'), $id]
         );
 
         AuditService::log('update', 'settings', 'tax', $id, "Updated tax {$d['name']}");

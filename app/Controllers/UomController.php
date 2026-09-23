@@ -55,8 +55,8 @@ final class UomController extends Controller
         $d = $v->data();
 
         Database::execute(
-            'INSERT INTO uoms (name, code, created_at, updated_at) VALUES (?, ?, ?, ?)',
-            [$d['name'], strtoupper($d['code']), date('Y-m-d H:i:s'), date('Y-m-d H:i:s')]
+            'INSERT INTO uoms (name, code, description, is_active, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)',
+            [$d['name'], strtoupper($d['code']), $d['description'] ?? '', date('Y-m-d H:i:s'), date('Y-m-d H:i:s')]
         );
         $id = (int) Database::lastInsertId();
 
@@ -88,8 +88,8 @@ final class UomController extends Controller
         $d = $v->data();
 
         Database::execute(
-            'UPDATE uoms SET name = ?, code = ?, updated_at = ? WHERE id = ?',
-            [$d['name'], strtoupper($d['code']), date('Y-m-d H:i:s'), $id]
+            'UPDATE uoms SET name = ?, code = ?, description = ?, is_active = ?, updated_at = ? WHERE id = ?',
+            [$d['name'], strtoupper($d['code']), $d['description'] ?? '', ($d['is_active'] ?? '1') === '1' ? 1 : 0, date('Y-m-d H:i:s'), $id]
         );
 
         AuditService::log('update', 'inventory', 'uom', $id, "Updated UOM {$d['name']}");

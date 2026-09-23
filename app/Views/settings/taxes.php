@@ -31,9 +31,18 @@
                         <input type="text" class="form-control" id="name" name="name" required maxlength="80" placeholder="e.g. Sales Tax">
                     </div>
                     <div class="mb-3">
+                        <label class="form-label" for="tax_type">Tax type <span class="required-star">*</span></label>
+                        <input type="text" class="form-control" id="tax_type" name="tax_type" required maxlength="40" value="sales_tax">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label" for="rate">Rate (%) <span class="required-star">*</span></label>
                         <input type="number" step="0.0001" min="0" max="100" class="form-control" id="rate" name="rate" required value="0">
                     </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6"><label class="form-label" for="effective_from">Effective from</label><input type="date" class="form-control" id="effective_from" name="effective_from"></div>
+                        <div class="col-md-6"><label class="form-label" for="effective_to">Effective to</label><input type="date" class="form-control" id="effective_to" name="effective_to"></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label" for="description">Description</label><input type="text" class="form-control" id="description" name="description" maxlength="255"></div>
                     <button type="submit" class="btn btn-primary btn-icon"><i class="bi bi-plus-lg"></i> Add tax</button>
                 </form>
             </div>
@@ -46,13 +55,15 @@
                 <div class="table-responsive erp-table-wrap">
                     <table class="table erp-table mb-0">
                         <thead>
-                            <tr><th>Name</th><th class="num">Rate</th><th>Status</th><th class="actions-cell">Actions</th></tr>
+                            <tr><th>Name</th><th>Type</th><th class="num">Rate</th><th>Effective</th><th>Status</th><th class="actions-cell">Actions</th></tr>
                         </thead>
                         <tbody>
                         <?php foreach ($this->data['taxes'] as $t): ?>
                             <tr>
                                 <td class="fw-semibold"><?= $this->e($t['name']) ?></td>
+                                <td><?= $this->e($t['tax_type'] ?? 'sales_tax') ?></td>
                                 <td class="num"><?= $this->e(rtrim(rtrim(number_format((float) $t['rate'], 4), '0'), '.')) ?>%</td>
+                                <td class="small"><?= $this->e(($t['effective_from'] ?? '') ?: 'Any') ?><?= !empty($t['effective_to']) ? ' - ' . $this->e($t['effective_to']) : '' ?></td>
                                 <td>
                                     <?php if ((int) $t['is_active'] === 1): ?>
                                         <span class="badge badge-soft-success">Active</span>
@@ -66,6 +77,10 @@
                                             data-id="<?= (int) $t['id'] ?>"
                                             data-name="<?= $this->e($t['name']) ?>"
                                             data-rate="<?= $this->e($t['rate']) ?>"
+                                            data-type="<?= $this->e($t['tax_type'] ?? 'sales_tax') ?>"
+                                            data-from="<?= $this->e($t['effective_from'] ?? '') ?>"
+                                            data-to="<?= $this->e($t['effective_to'] ?? '') ?>"
+                                            data-description="<?= $this->e($t['description'] ?? '') ?>"
                                             data-active="<?= (int) $t['is_active'] ?>">
                                         <i class="bi bi-pencil"></i>
                                     </button>
@@ -77,7 +92,7 @@
                             </tr>
                         <?php endforeach; ?>
                         <?php if (!$this->data['taxes']): ?>
-                            <tr><td colspan="4"><div class="empty-state"><i class="bi bi-percent"></i>No taxes configured.</div></td></tr>
+                            <tr><td colspan="6"><div class="empty-state"><i class="bi bi-percent"></i>No taxes configured.</div></td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
@@ -97,6 +112,24 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="te-type">Tax type</label>
+                        <input type="text" class="form-control" id="te-type" name="tax_type" maxlength="40" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="te-from">Effective from</label>
+                            <input type="date" class="form-control" id="te-from" name="effective_from">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="te-to">Effective to</label>
+                            <input type="date" class="form-control" id="te-to" name="effective_to">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="te-description">Description</label>
+                        <input type="text" class="form-control" id="te-description" name="description" maxlength="255">
+                    </div>
                     <div class="mb-3">
                         <label class="form-label" for="te-name">Name</label>
                         <input type="text" class="form-control" id="te-name" name="name" required maxlength="80">
@@ -127,6 +160,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const b = e.relatedTarget;
         document.getElementById('te-name').value = b.dataset.name;
         document.getElementById('te-rate').value = b.dataset.rate;
+        document.getElementById('te-type').value = b.dataset.type || 'sales_tax';
+        document.getElementById('te-from').value = b.dataset.from || '';
+        document.getElementById('te-to').value = b.dataset.to || '';
+        document.getElementById('te-description').value = b.dataset.description || '';
         document.getElementById('te-active').checked = b.dataset.active === '1';
         document.getElementById('taxEditForm').action = '/settings/taxes/' + b.dataset.id;
     });
