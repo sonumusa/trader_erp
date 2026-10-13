@@ -75,7 +75,7 @@
     });
 
     if (backdrop) backdrop.addEventListener('click', () => closeSidebar());
-
+    
     if (window.matchMedia('(min-width: 992px)').matches) {
         if (document.querySelector('.erp-content form')) {
             setSidebarCollapsed(true);
